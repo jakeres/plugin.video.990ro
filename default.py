@@ -2,7 +2,7 @@ import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLP
 
 website = 'http://www.990.ro/';
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __plugin__ = "990.ro" + __version__
 __url__ = "www.xbmc.com"
 settings = xbmcaddon.Addon( id = 'plugin.video.990ro' )
@@ -22,7 +22,7 @@ def ROOT():
 
 def FILME(url):
     link=get_url(url)
-    match=re.compile('<a href="(filme-[0-9]+-.+?.html )" class=\'thumb\'><img src="(filme/.+?)" alt="(.+?)"', re.IGNORECASE).findall(link)
+    match=re.compile("<a href='(filme-[0-9]+-.+?.html)'><img src='../(poze/filme/.+?)' alt='(.+?)'", re.IGNORECASE).findall(link)
     for legatura, thumbnail, name in match:
         the_link = 'http://www.990.ro/'+legatura
         image = 'http://www.990.ro/'+thumbnail
@@ -35,7 +35,7 @@ def FILME(url):
 
 def FILME_CALITATE_BUNA(url):
     link=get_url(url)
-    match = re.compile('<a href="(filme-[0-9]+-.+?.html)" title=".+?">(.+?)</a><br />', re.IGNORECASE).findall(link)
+    match = re.compile("<div style='position:relative; float:left; padding-left:5px; width:235px; border:0px solid #000; font:14px Tahoma; color:#666;'>\s+<a class='link' href='(filme-.+?)'>(.+?)</a>", re.IGNORECASE).findall(link)
     for legatura, name in match:
         #the_link = urllib.quote(url+legatura)
         the_link = url+legatura
@@ -49,14 +49,13 @@ def CAUTA(url):
     keyboard.doModal()
     if ( keyboard.isConfirmed() == False ):
         return
-    search_string = keyboard.getText().replace( ' ', '+' )
+    search_string = keyboard.getText()
     if len( search_string ) == 0:
         return
     
-    page = 'http://www.990.ro/cauta2.php?text='+search_string+'&submit=Cauta'
-    link = get_url(page)
+    link = get_search(search_string)
 
-    match=re.compile('<a href="(filme-[0-9]+-.+?.html )" class=\'thumb\'><img src="(filme/.+?)" alt="(.+?)"', re.IGNORECASE).findall(link)
+    match=re.compile("<a href='(filme-[0-9]+-.+?.html)'><li class='search'><div id='auth_img'><img class='search' width='40' height='60' src='../(.+?)'></div><div id='rest'>(.+?)<", re.IGNORECASE).findall(link)
     if len(match) > 0:
         for legatura, thumbnail, name in match:
             the_link = 'http://www.990.ro/'+legatura
@@ -67,56 +66,71 @@ def CAUTA(url):
 
 def SERIALE(url):
     link=get_url(url)
-    match=re.compile('<li><a href="(seriale-[0-9]+-.+?.html)" title=".+?">(.+?)</a></li>', re.IGNORECASE).findall(link)
+    match=re.compile('<div class=\'ss\'><a.*? href="(seriale-[0-9]+-.+?.html)" title="(.+?)">.+?</a></div>', re.IGNORECASE).findall(link)
     for legatura,name in match:
         the_link = url+legatura
         addDir(name,the_link,6,'')
 
 def SEZON(url):
     link=get_url(url)
-    match=re.compile("><img src='img/sez([0-9]+).gif' alt='(.+?)'></", re.IGNORECASE).findall(link)
+    match=re.compile("<img src='images/seriale-sezoane/sez([0-9]+).gif' alt='(.+?)'>", re.IGNORECASE).findall(link)
     for nr, sezon in match:
         addDir(sezon,url+'?sezon='+nr,7,'')
 
 def EPISOADE(url):
     link=get_url(url)
     match=re.compile("sezon=([0-9]+)", re.IGNORECASE).findall(url)
-    sezon = '0'+match[0] if int(match[0]) < 10 else match[0]  
-    match=re.compile("Sezonul "+sezon+", (Episodul .+?)</div></td><td><a href='(seriale2-[0-9]+-[0-9]+-.+?.html)'>(.+?)</a>", re.IGNORECASE).findall(link)
+    sezon = '0'+match[0] if int(match[0]) < 10 else match[0]
+
+    pattern = "<div style='position:relative; float:left; margin-left:100px; border:0px solid #000; width:180px; font:15px Tahoma;'>Sezonul "+sezon+", (Episodul .+?)</div>"
+    pattern += "\s+<div style='position:relative; float:left; border:0px solid #000; width:20px; height:18px; font:15px Tahoma; margin-top:2px;'></div>"
+    pattern += "\s+<div style='position:relative; float:left; border:0px solid #000; width:20px; height:18px; font:15px Tahoma; margin-top:2px;'></div>"
+    pattern += "\s+<div style='position:relative; float:left; margin-left:10px; border:0px solid #000; width:295px;'>"
+    pattern += "<a href='(seriale2-[0-9]+-[0-9]+-.+?.html)' class='link'>(.*?)</a>"
+
+    match=re.compile(pattern, re.IGNORECASE).findall(link)
     for nr, legatura, titlu in match:
         addDir(nr+' - '+titlu,'http://www.990.ro/'+legatura,8,'')
 
 def VIDEO_EPISOD(url):
-    match=re.compile("seriale2-([0-9]+-[0-9]+)-(.+?)-download", re.IGNORECASE).findall(url)
+    match=re.compile("seriale2-([0-9]+-[0-9]+)-(.+?)-(online|download)", re.IGNORECASE).findall(url)
     id_episod = match[0][0]
     nume = match[0][1]
 
+    # episode title
+    link=get_url(url)
+    match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:420px; padding-left:20px; margin-top:30px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
+    episode_title = match[0]
+
     # link fu
-    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-'+nume+'--sfast.html'
+    #legatura = 'http://www.990.ro/player-serial-'+id_episod+'-'+nume+'-sfast.html'
+    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sfast.html'
     # fu source
     fu_source = get_fu_link(legatura)
-    addLink('Server FastUpload', fu_source['url']+'?.flv|referer='+fu_source['referer'], '', fu_source['title'])
+    addLink('Server FastUpload', fu_source['url']+'?.flv|referer='+fu_source['referer'], '', episode_title)
 
+    '''
     # link xvidstage
-    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-'+nume+'--sxvid.html'
+    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sxvid.html'
     # xvidstage source - if it is alive
     xv_source = get_xvidstage_link(legatura)
     if xv_source['url'] != '' :
-        addLink('Server Xvidstage', xv_source['url']+'?.flv', '', xv_source['title'])
+        addLink('Server Xvidstage', xv_source['url']+'?.flv', '', episode_title)
+    '''
 
 def VIDEO(url, name):
     #print 'url video '+url
     #print 'nume video '+name
     # thumbnail
     src = get_url(urllib.quote(url, safe="%/:=&?~#+!$,;'@()*[]"))
-    match = re.compile('<h5></h5>\n.+?<img src=\'(.+?)\' alt=\'.+?\' /></td>', re.IGNORECASE).findall(src)
+    match = re.compile("<div style='position:relative; float:left; border:0px solid #000;'><img src='../(.+?)'", re.IGNORECASE).findall(src)
     thumbnail = 'http://www.990.ro/'+match[0]
     # calitate film
-    match=re.compile('<td>Calitatea filmului: nota <b><u>(.+?)</u></b>', re.IGNORECASE).findall(src)
+    match=re.compile("<div align='center' style='position:relative; float:left; width:50px; height:30px; background-color:#999; color:#fff; font-size:20px; padding-top:3px;'><b>(.+?)</b>", re.IGNORECASE).findall(src)
     calitate_film = match[0]
     #link trailer
     try:
-        match=re.compile("<div align='center'><iframe width='595' height='335' src='.+?/embed/(.+?)'", re.IGNORECASE).findall(src)
+        match=re.compile("<iframe width='595' height='335' src='.+?/embed/(.+?)' frameborder='0'>", re.IGNORECASE).findall(src)
         link_youtube = 'http://www.youtube.com/watch?v='+match[0]
         link_video_trailer = youtube_video_link(link_youtube)
     except:
@@ -125,21 +139,27 @@ def VIDEO(url, name):
     match=re.compile('990.ro/filme-([0-9]+)-.+?.html', re.IGNORECASE).findall(url)
     video_id = match[0]
 
+    # movie title
+    match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:420px; padding-left:10px; margin-top:5px; font:24px Tahoma; font-weight:bold;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(src)
+    movie_title = match[0]
+
     # fu source
     source_link = 'http://www.990.ro/player-film-'+video_id+'-sfast.html'
     fu_source = get_fu_link(source_link)
     if fu_source['url'] != '':
-        addLink('Server FastUpload (calitate video: nota '+calitate_film+')', fu_source['url']+'?.flv|referer='+fu_source['referer'], thumbnail, fu_source['title'])
+        addLink('Server FastUpload (calitate video: nota '+calitate_film+')', fu_source['url']+'?.flv|referer='+fu_source['referer'], thumbnail, movie_title)
 
+    '''
     # xvidstage source
     source_link = 'http://www.990.ro/player-film-'+video_id+'-sxvid.html'
     xv_source = get_xvidstage_link(source_link)
     if xv_source['url'] != '' :
         addLink('Server Xvidstage (calitate video: nota '+calitate_film+')', xv_source['url']+'?.flv', thumbnail, xv_source['title'])
+    '''
 
     # link trailer
     if link_video_trailer != '':
-        addLink('Trailer film', link_video_trailer+'?.mp4', thumbnail, fu_source['title']+' (trailer)')
+        addLink('Trailer film', link_video_trailer+'?.mp4', thumbnail, movie_title+' (trailer)')
     
 
 def get_url(url):
@@ -155,31 +175,26 @@ def get_url(url):
 
 def get_fu_link(legatura):
     link = get_url(legatura)
-    match = re.compile('<center><center><a href=\'(.+?)\'><img src=\'.+?\'></a></center></center>', re.IGNORECASE).findall(link)
+    match = re.compile("(http://fastupload.ro/.+?.html)' target='_blank'", re.IGNORECASE).findall(link)
     fu_link = match[0]
     fu_source = get_url(fu_link)
     if fu_source == False:
         return {'title': '', 'url': ''}
-    # titlu serial episod
-    match=re.compile("<div class=\'post_title\'><center><h1>(.+?)</h1></center></div>", re.IGNORECASE).findall(link)
-    episode_title = match[0]
     # fastupload flv url
     match=re.compile("'file': '(.+?).flv',", re.IGNORECASE).findall(fu_source)
     url_flv = match[0] + '.flv'
     #prepare
     fu = {}
-    fu['title']   = episode_title
     fu['url']     = url_flv
     fu['referer'] = fu_link 
     return fu
 
 def get_xvidstage_link(legatura):
     link = get_url(legatura)
-    match = re.compile('<center><IFRAME SRC="(.+?)" FRAMEBORDER=0', re.IGNORECASE).findall(link)
+    match = re.compile("(http://xvidstage.com/.+?)' target='_blank'", re.IGNORECASE).findall(link)
+    if match[0] == False:
+        return {'title': '', 'url': ''}
     xv_link = match[0]
-    # titlu serial episod
-    match=re.compile("<div class=\'post_title\'><center><h1>(.+?)</h1></center></div>", re.IGNORECASE).findall(link)
-    movie_title = match[0]
     # xvidstage flv url
     xv_source = get_url(xv_link)
     if xv_source == False:
@@ -195,9 +210,22 @@ def get_xvidstage_link(legatura):
         xvidstage_flv = ''
     #prepare
     xv = {}
-    xv['title'] = movie_title
     xv['url'] = xvidstage_flv
     return xv
+
+def get_search(keyword):
+    url = 'http://www.990.ro/functions/search3/live_search_using_jquery_ajax/search.php'
+    params = {'kw': keyword}
+    req = urllib2.Request(url, urllib.urlencode(params))
+    req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+    req.add_header('Content-type', 'application/x-www-form-urlencoded')
+    try:
+        response = urllib2.urlopen(req)
+        link=response.read()
+        response.close()
+        return link
+    except:
+        return False
 
 def get_params():
         param=[]
@@ -232,7 +260,8 @@ def yt_get_all_url_maps_name(url):
             HTMLParser.HTMLParser().unescape(n[0]))
 
 def yt_get_url(z):
-    return urllib.unquote(z['url'] + '&signature=%s' % z['sig'])
+    #return urllib.unquote(z['url'] + '&signature=%s' % z['sig'])
+    return urllib.unquote(z['url'])
 
 def youtube_video_link(url):
     # 18 - mp4
