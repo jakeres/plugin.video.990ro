@@ -1,3 +1,7 @@
+[B]Version 1.0.3[/B]
+
+- fix for new 990.ro design, repair all the links
+
 [B]Version 1.0.2[/B]
 
 - add referer header to fastupload links 
