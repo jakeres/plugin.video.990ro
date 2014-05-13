@@ -109,14 +109,14 @@ def VIDEO_EPISOD(url):
     fu_source = get_fu_link(legatura)
     addLink('Server FastUpload', fu_source['url']+'?.flv|referer='+fu_source['referer'], '', episode_title)
 
-    '''
+    
     # link xvidstage
     legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sxvid.html'
     # xvidstage source - if it is alive
     xv_source = get_xvidstage_link(legatura)
     if xv_source['url'] != '' :
         addLink('Server Xvidstage', xv_source['url']+'?.flv', '', episode_title)
-    '''
+    
 
 def VIDEO(url, name):
     #print 'url video '+url
@@ -149,13 +149,13 @@ def VIDEO(url, name):
     if fu_source['url'] != '':
         addLink('Server FastUpload (calitate video: nota '+calitate_film+')', fu_source['url']+'?.flv|referer='+fu_source['referer'], thumbnail, movie_title)
 
-    '''
+   
     # xvidstage source
     source_link = 'http://www.990.ro/player-film-'+video_id+'-sxvid.html'
     xv_source = get_xvidstage_link(source_link)
     if xv_source['url'] != '' :
-        addLink('Server Xvidstage (calitate video: nota '+calitate_film+')', xv_source['url']+'?.flv', thumbnail, xv_source['title'])
-    '''
+        addLink('Server Xvidstage (calitate video: nota '+calitate_film+')', xv_source['url']+'?.flv', thumbnail, movie_title)
+    
 
     # link trailer
     if link_video_trailer != '':
@@ -189,14 +189,19 @@ def get_fu_link(legatura):
     fu['referer'] = fu_link 
     return fu
 
-def get_xvidstage_link(legatura):
+def get_xvidstage_link(legatura):   
     link = get_url(legatura)
     match = re.compile("(http://xvidstage.com/.+?)' target='_blank'", re.IGNORECASE).findall(link)
     if match[0] == False:
         return {'title': '', 'url': ''}
     xv_link = match[0]
+    id = xv_link.split('/')[3]  
+    postData = {"op":"download1","usr_login":"","id":id,"referer":"http://sh.st/w25V3","method_free":"Continue to video / Continue to Free Download"}
+    data = urllib.urlencode(postData)    
     # xvidstage flv url
-    xv_source = get_url(xv_link)
+    result = urllib2.urlopen(xv_link, data)
+    xv_source = result.read()
+    result.close()
     if xv_source == False:
         return {'title': '', 'url': ''}
     match=re.compile("src='http://xvidstage.com/player/swfobject.js'></script>.+?<script type=\'text/javascript\'>(.*?)</script>", re.DOTALL + re.IGNORECASE).findall(xv_source)
