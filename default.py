@@ -2,7 +2,7 @@ import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLP
 
 website = 'http://www.990.ro/';
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __plugin__ = "990.ro" + __version__
 __url__ = "www.xbmc.com"
 settings = xbmcaddon.Addon( id = 'plugin.video.990ro' )
@@ -98,9 +98,12 @@ def VIDEO_EPISOD(url):
     nume = match[0][1]
 
     # episode title
-    link=get_url(url)
-    match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:420px; padding-left:20px; margin-top:30px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
-    episode_title = match[0]
+    try:
+        link=get_url(url)
+        match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:410px; padding-left:20px; margin-top:15px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
+        episode_title = match[0]
+    except:
+        episode_title = ''
 
     # link fu
     #legatura = 'http://www.990.ro/player-serial-'+id_episod+'-'+nume+'-sfast.html'
@@ -189,12 +192,13 @@ def get_fu_link(legatura):
     fu['referer'] = fu_link 
     return fu
 
-def get_xvidstage_link(legatura):   
+def get_xvidstage_link(legatura):
     link = get_url(legatura)
     match = re.compile("(http://xvidstage.com/.+?)' target='_blank'", re.IGNORECASE).findall(link)
-    if match[0] == False:
+    try:
+        xv_link = match[0]
+    except:
         return {'title': '', 'url': ''}
-    xv_link = match[0]
     id = xv_link.split('/')[3]  
     postData = {"op":"download1","usr_login":"","id":id,"referer":"http://sh.st/w25V3","method_free":"Continue to video / Continue to Free Download"}
     data = urllib.urlencode(postData)    
@@ -366,4 +370,3 @@ elif mode==8:
 
 
 xbmcplugin.endOfDirectory(int(sys.argv[1]))
-                       

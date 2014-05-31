@@ -1,3 +1,8 @@
+[B]Version 1.0.4[/B]
+
+- fixed series episodes titles
+- added support for xvidstage links again, thanks to cplaiasu
+
 [B]Version 1.0.3[/B]
 
 - fix for new 990.ro design, repair all the links
