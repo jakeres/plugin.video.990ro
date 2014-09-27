@@ -1,3 +1,8 @@
+[B]Version 1.0.5[/B]
+
+- added support for mp4 links - fastupload
+- fixed a regex 
+
 [B]Version 1.0.4[/B]
 
 - fixed series episodes titles

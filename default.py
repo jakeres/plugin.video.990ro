@@ -178,14 +178,18 @@ def get_url(url):
 
 def get_fu_link(legatura):
     link = get_url(legatura)
-    match = re.compile("(http://fastupload.ro/.+?.html)' target='_blank'", re.IGNORECASE).findall(link)
-    fu_link = match[0]
+    match = re.compile("(http://fastupload.ro/.+?.html)", re.IGNORECASE).findall(link)
+    try:
+        fu_link = match[0]
+    except:
+        return {'url': '', 'referer': ''}
+    print fu_link
     fu_source = get_url(fu_link)
     if fu_source == False:
-        return {'title': '', 'url': ''}
+        return {'url': '', 'referer': ''}
     # fastupload flv url
-    match=re.compile("'file': '(.+?).flv',", re.IGNORECASE).findall(fu_source)
-    url_flv = match[0] + '.flv'
+    match=re.compile("'file': '(.+?).(flv|mp4)',", re.IGNORECASE).findall(fu_source)
+    url_flv = match[0][0] + '.' + match[0][1]
     #prepare
     fu = {}
     fu['url']     = url_flv
