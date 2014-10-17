@@ -1,4 +1,4 @@
-import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLParser,jsunpack
+import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLParser,jsunpack,time
 
 website = 'http://www.990.ro/';
 
@@ -90,9 +90,10 @@ def EPISOADE(url):
 
     match=re.compile(pattern, re.IGNORECASE).findall(link)
     for nr, legatura, titlu in match:
-        addDir(nr+' - '+titlu,'http://www.990.ro/'+legatura,8,'')
+        #addDir(nr+' - '+titlu,'http://www.990.ro/'+legatura,8,'')
+        sxaddLink(nr+' - '+titlu,'http://www.990.ro/'+legatura,'',nr+' - '+titlu,9)
 
-def VIDEO_EPISOD(url):
+def SXVIDEO_EPISOD_PLAY(url):
     match=re.compile("seriale2-([0-9]+-[0-9]+)-(.+?)-(online|download)", re.IGNORECASE).findall(url)
     id_episod = match[0][0]
     nume = match[0][1]
@@ -100,27 +101,52 @@ def VIDEO_EPISOD(url):
     # episode title
     try:
         link=get_url(url)
-        match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:410px; padding-left:20px; margin-top:15px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
-        episode_title = match[0]
+        #match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:410px; padding-left:20px; margin-top:15px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
+        #episode_title = match[0]
+        
+        match=re.compile("<meta property='og:title' content='(.+?) - S (.+?), Ep (.+?) - (.+?) online'/>", re.IGNORECASE).findall(link)
+        episode_title = match[0][0] + " - s" + match[0][1] + "e" + match[0][2] + " - " + match[0][3]
     except:
         episode_title = ''
 
-    # link fu
-    #legatura = 'http://www.990.ro/player-serial-'+id_episod+'-'+nume+'-sfast.html'
-    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sfast.html'
-    # fu source
-    fu_source = get_fu_link(legatura)
-    addLink('Server FastUpload', fu_source['url']+'?.flv|referer='+fu_source['referer'], '', episode_title)
-
-    
-    # link xvidstage
-    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sxvid.html'
-    # xvidstage source - if it is alive
-    xv_source = get_xvidstage_link(legatura)
-    if xv_source['url'] != '' :
-        addLink('Server Xvidstage', xv_source['url']+'?.flv', '', episode_title)
+    # links
+    sxurls = [
+      ("fu_source", 'http://www.990.ro/player-serial-'+id_episod+'-sfast.html'),
+      ("xv_source", 'http://www.990.ro/player-serial-'+id_episod+'-sxvid.html')]
+    SXVIDEO_GENERIC_PLAY(sxurls, episode_title)
     
 
+def SXVIDEO_GENERIC_PLAY(sxurls, seltitle):
+    listitem = xbmcgui.ListItem(seltitle)
+    listitem.setInfo('video', {'Title': seltitle})
+    
+    for linksource, source_link in sxurls:
+      if linksource == "fu_source":
+        # link fusource
+        fu_source  = get_fu_link(source_link)
+        selurl     = fu_source['url']+'?.flv|referer='+fu_source['referer']
+        
+        if SXVIDEO_PLAY_THIS(selurl, listitem):
+          break
+          
+      elif linksource == "xv_source":
+        # link xvidstage
+        xv_source  = get_xvidstage_link(source_link)
+        selurl     = xv_source['url']+'?.flv'
+        
+        if SXVIDEO_PLAY_THIS(selurl, listitem):
+          break
+    
+def SXVIDEO_PLAY_THIS(selurl, listitem):
+    player = xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ) 
+    player.play(selurl, listitem)
+    x = 0;
+    while not player.isPlaying() and x < 20:
+      time.sleep(1)
+      x += 1
+    
+    return player.isPlaying()
+    
 def VIDEO(url, name):
     #print 'url video '+url
     #print 'nume video '+name
@@ -290,6 +316,13 @@ def youtube_video_link(url):
             link = yt_get_url(z)
     return link
 
+def sxaddLink(name,url,iconimage,movie_name,mode=4):
+        ok=True
+        u=sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
+        liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage)
+        liz.setInfo( type="Video", infoLabels={ "Title": movie_name } )
+        ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz)
+        return ok
 
 def addLink(name,url,iconimage,movie_name):
         ok=True
@@ -370,6 +403,10 @@ elif mode==7:
 elif mode==8:
         print ""+url
         VIDEO_EPISOD(url)
+
+elif mode==9:
+        print ""+url
+        SXVIDEO_EPISOD_PLAY(url)
 
 
 
