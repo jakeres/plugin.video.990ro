@@ -1,4 +1,4 @@
-import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLParser,jsunpack
+import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLParser,jsunpack,time
 
 website = 'http://www.990.ro/';
 
@@ -13,24 +13,58 @@ movies_hd_thumb = os.path.join( settings.getAddonInfo( 'path' ), 'resources', 'm
 tv_series_thumb = os.path.join( settings.getAddonInfo( 'path' ), 'resources', 'media', 'tv.png' )
 next_thumb = os.path.join( settings.getAddonInfo( 'path' ), 'resources', 'media', 'next.png' )
 
+try:
+   import StorageServer
+except:
+   import storageserverdummy as StorageServer
+cache = StorageServer.StorageServer("990ro", 24)
+
+
 def ROOT():
-    addDir('Filme','http://www.990.ro/toate-filmele-pagina-1.html',1,movies_thumb)
+    addDir('Filme','http://www.990.ro/toate-filmele.php?pagina=1',1,movies_thumb)
+    addDir('Filme pe genuri','http://www.990.ro/toate-filmele.php?pagina=1',11,movies_thumb)
     addDir('Filme actualizate','http://www.990.ro/',2,movies_hd_thumb)
-    addDir('Seriale','http://www.990.ro/',5,tv_series_thumb)
+    addDir('Seriale','http://www.990.ro/seriale.php?pagina=1',5,tv_series_thumb)
+    addDir('Seriale pe genuri','http://www.990.ro/seriale.php?pagina=1',51,tv_series_thumb)
     addDir('Cauta filme','http://www.990.ro/',3,search_thumb)
+    
     xbmc.executebuiltin("Container.SetViewMode(500)")
 
-def FILME(url):
+def afisare_genuri(gen, url, link, linkto, dirid):
+    
+    if (gen == None):
+      match=re.compile("<li><a href='\?afisare=.+?&amp;gen=([a-z].+?)&amp;.+?>", re.IGNORECASE).findall(link)
+      for name in match:
+          fgen=name
+          the_link = linkto+'?pagina=1'+'&gen='+fgen
+          addDir(name,the_link,dirid,movies_thumb)
+      return;
+
+    match=re.compile("&gen=(.+?)$", re.IGNORECASE).findall(url)
+    if (match):
+        gen=match[0]
+        
+    return gen;
+
+def FILME(url, gen = None):
     link=get_url(url)
-    match=re.compile("<a href='(filme-[0-9]+-.+?.html)'><img src='../(poze/filme/.+?)' alt='(.+?)'", re.IGNORECASE).findall(link)
+    
+    gen=afisare_genuri(gen, url, link, 'http://www.990.ro/toate-filmele.php', 1)
+    if (gen == None): return;
+    
+    match=re.compile("<a href='(filme-[0-9]+-.+?.html)'><img src='../(poze/filme/.+?)' alt='(.+?)'", re.IGNORECASE|re.MULTILINE).findall(link)
+        
     for legatura, thumbnail, name in match:
         the_link = 'http://www.990.ro/'+legatura
         image = 'http://www.990.ro/'+thumbnail
-        addDir(name,the_link,4,image)
+        sxaddLink(name,the_link,image,name,10)
     # pagina urmatoare
-    match=re.compile('toate-filmele-pagina-([0-9]+).html', re.IGNORECASE).findall(url)
+    match=re.compile('pagina=([0-9]+)', re.IGNORECASE).findall(url)
     nr_pagina = match[0]
-    addNext('Next','http://www.990.ro/toate-filmele-pagina-'+str(int(nr_pagina)+1)+'.html', 1, next_thumb)
+    
+    if (gen == None): gen = "";
+
+    addNext('Next','http://www.990.ro/toate-filmele.php?gen='+gen+'&pagina='+str(int(nr_pagina)+1), 1, next_thumb)
     xbmc.executebuiltin("Container.SetViewMode(500)")
 
 def FILME_CALITATE_BUNA(url):
@@ -39,12 +73,11 @@ def FILME_CALITATE_BUNA(url):
     for legatura, name in match:
         #the_link = urllib.quote(url+legatura)
         the_link = url+legatura
-        addDir(name,the_link,4,'')
-        print 'legatura: '+url+legatura
+        sxaddLink(name,the_link,'',name,10)
+        #print 'legatura: '+url+legatura
     xbmc.executebuiltin("Container.SetViewMode(500)")
 
 def CAUTA(url):
-    print 'Cauta'
     keyboard = xbmc.Keyboard( '' )
     keyboard.doModal()
     if ( keyboard.isConfirmed() == False ):
@@ -60,16 +93,43 @@ def CAUTA(url):
         for legatura, thumbnail, name in match:
             the_link = 'http://www.990.ro/'+legatura
             image = 'http://www.990.ro/'+thumbnail
-            addDir(name,the_link,4,image)
+            sxaddLink(name,the_link,image,name,10)
+
+    match=re.compile("<a href='(seriale-[0-9]+-.+?.html)'><li class='search'><div id='auth_img'><img class='search' width='40' height='60' src='../(.+?)'></div><div id='rest'>(.+?)<", re.IGNORECASE).findall(link)
+    if len(match) > 0:
+        for legatura, thumbnail, name in match:
+            the_link = 'http://www.990.ro/'+legatura
+            image = 'http://www.990.ro/'+thumbnail
+            #sxaddLink("Serial: " + name,the_link,image,name,10)
+            addDir("Serial: " + name,the_link,6,image)
+            
     xbmc.executebuiltin("Container.SetViewMode(500)")
     
 
-def SERIALE(url):
+def SERIALE(url, gen = None):
     link=get_url(url)
-    match=re.compile('<div class=\'ss\'><a.*? href="(seriale-[0-9]+-.+?.html)" title="(.+?)">.+?</a></div>', re.IGNORECASE).findall(link)
-    for legatura,name in match:
-        the_link = url+legatura
-        addDir(name,the_link,6,'')
+    
+    #print "SERIALE"
+    #print url
+    
+    gen=afisare_genuri(gen, url, link, 'http://www.990.ro/seriale.php', 5)
+    if (gen == None): return;
+    
+    match=re.compile('<a href=\'(seriale-[0-9]+-.+?.html)\'><img src=\'../poze/(.+?)\' alt=\'(.+?)\' title=', re.IGNORECASE).findall(link)
+    for legatura,image,name  in match:
+        the_link = 'http://www.990.ro/'+legatura
+        image = 'http://www.990.ro/poze/'+image
+        addDir(name,the_link,6,image)
+
+    # pagina urmatoare
+    match=re.compile('pagina=([0-9]+)', re.IGNORECASE).findall(url)
+    nr_pagina = match[0]
+    
+    #print nr_pagina
+    if (gen == None): gen = "";
+
+    addNext('Next','http://www.990.ro/seriale.php?gen='+gen+'&pagina='+str(int(nr_pagina)+1), 5, next_thumb)
+    xbmc.executebuiltin("Container.SetViewMode(500)")
 
 def SEZON(url):
     link=get_url(url)
@@ -90,9 +150,12 @@ def EPISOADE(url):
 
     match=re.compile(pattern, re.IGNORECASE).findall(link)
     for nr, legatura, titlu in match:
-        addDir(nr+' - '+titlu,'http://www.990.ro/'+legatura,8,'')
+        #addDir(nr+' - '+titlu,'http://www.990.ro/'+legatura,8,'')
+        sxaddLink(nr+' - '+titlu,'http://www.990.ro/'+legatura,'',nr+' - '+titlu,9)
 
-def VIDEO_EPISOD(url):
+        
+def SXVIDEO_EPISOD_PLAY(url):
+    SXSHOWINFO("Playing episode...")
     match=re.compile("seriale2-([0-9]+-[0-9]+)-(.+?)-(online|download)", re.IGNORECASE).findall(url)
     id_episod = match[0][0]
     nume = match[0][1]
@@ -100,37 +163,102 @@ def VIDEO_EPISOD(url):
     # episode title
     try:
         link=get_url(url)
-        match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:410px; padding-left:20px; margin-top:15px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
-        episode_title = match[0]
+        #match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:410px; padding-left:20px; margin-top:15px; font:16px Tahoma;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(link)    
+        #episode_title = match[0]
+        
+        match=re.compile("<meta property='og:title' content='(.+?) - S (.+?), Ep (.+?) - (.+?) online'/>", re.IGNORECASE).findall(link)
+        episode_title = match[0][0] + " - s" + match[0][1] + "e" + match[0][2] + " - " + match[0][3]
     except:
         episode_title = ''
 
-    # link fu
-    #legatura = 'http://www.990.ro/player-serial-'+id_episod+'-'+nume+'-sfast.html'
-    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sfast.html'
-    # fu source
-    fu_source = get_fu_link(legatura)
-    addLink('Server FastUpload', fu_source['url']+'?.flv|referer='+fu_source['referer'], '', episode_title)
+    SXSHOWINFO("Found video links for " + episode_title + "...")
 
-    
-    # link xvidstage
-    legatura = 'http://www.990.ro/player-serial-'+id_episod+'-sxvid.html'
-    # xvidstage source - if it is alive
-    xv_source = get_xvidstage_link(legatura)
-    if xv_source['url'] != '' :
-        addLink('Server Xvidstage', xv_source['url']+'?.flv', '', episode_title)
+    # links
+    sxurls = [
+      ("fu_source", 'http://www.990.ro/player-serial-'+id_episod+'-sfast.html'),
+      ("xv_source", 'http://www.990.ro/player-serial-'+id_episod+'-sxvid.html')]
+    SXVIDEO_GENERIC_PLAY(sxurls, episode_title)
     
 
-def VIDEO(url, name):
-    #print 'url video '+url
-    #print 'nume video '+name
+def SXVIDEO_GENERIC_PLAY(sxurls, seltitle):
+    listitem = xbmcgui.ListItem(seltitle)
+    listitem.setInfo('video', {'Title': seltitle})
+    
+    for linksource, source_link in sxurls:
+      if linksource == "trailer":
+        SXVIDEO_PLAY_THIS(source_link, listitem, None)
+        break
+        
+      elif linksource == "fu_source":
+        # link fusource
+        fu_source  = get_fu_link(source_link)
+        selurl     = fu_source['url']
+        #print "fusource " + selurl
+        
+        if SXVIDEO_PLAY_THIS(selurl, listitem, fu_source):
+          break
+          
+      elif linksource == "xv_source":
+        # link xvidstage
+        xv_source  = get_xvidstage_link(source_link)
+        selurl     = xv_source['url']+'?.flv'
+        #print "xvid" + selurl
+        
+        if SXVIDEO_PLAY_THIS(selurl, listitem, xv_source):
+          break
+
+      
+def SXVIDEO_PLAY_THIS(selurl, listitem, source):
+    player = xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ) 
+    player.play(selurl, listitem)
+    
+    while not player.isPlaying():
+      time.sleep(1) 
+
+    try:
+          #if source['subtitle'] != "":
+          #print source
+          player.setSubtitles(source['subtitle'])
+    except:
+        pass
+
+    while player.isPlaying:
+      xbmc.sleep(100);
+    
+    return player.isPlaying()
+
+
+def SXSHOWINFO(text):
+    #progress = xbmcgui.DialogProgress()
+    #progress.create("kml browser", "downloading playlist...", "please wait.")
+    print ""
+    
+def SXVIDEO_FILM_PLAY(url):
+    SXSHOWINFO("Playing movie...")
+    
     # thumbnail
     src = get_url(urllib.quote(url, safe="%/:=&?~#+!$,;'@()*[]"))
     match = re.compile("<div style='position:relative; float:left; border:0px solid #000;'><img src='../(.+?)'", re.IGNORECASE).findall(src)
     thumbnail = 'http://www.990.ro/'+match[0]
+    
     # calitate film
     match=re.compile("<div align='center' style='position:relative; float:left; width:50px; height:30px; background-color:#999; color:#fff; font-size:20px; padding-top:3px;'><b>(.+?)</b>", re.IGNORECASE).findall(src)
     calitate_film = match[0]
+    
+    #aparitie film
+    match=re.compile("<b>Aparitie</b>: (.\d+)", re.IGNORECASE).findall(src)
+    aparitie_film = match[0]
+
+    #gen film
+    match=re.compile("<b>Gen</b>: (.+?)[\n<>]", re.IGNORECASE).findall(src)
+    gen_film = match[0]
+
+    #nota imdb
+    match=re.compile("Nota IMDb: <br>\n.+?<b>(.+?)</b>/10 \((.+?) voturi\)", re.IGNORECASE).findall(src)
+    nota_film = match[0]
+
+    
+        
     #link trailer
     try:
         match=re.compile("<iframe width='595' height='335' src='.+?/embed/(.+?)' frameborder='0'>", re.IGNORECASE).findall(src)
@@ -146,23 +274,33 @@ def VIDEO(url, name):
     match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:420px; padding-left:10px; margin-top:5px; font:24px Tahoma; font-weight:bold;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(src)
     movie_title = match[0]
 
-    # fu source
-    source_link = 'http://www.990.ro/player-film-'+video_id+'-sfast.html'
-    fu_source = get_fu_link(source_link)
-    if fu_source['url'] != '':
-        addLink('Server FastUpload (calitate video: nota '+calitate_film+')', fu_source['url']+'?.flv|referer='+fu_source['referer'], thumbnail, movie_title)
+    SXSHOWINFO("Found video links for " + movie_title + " ...")
 
-   
-    # xvidstage source
-    source_link = 'http://www.990.ro/player-film-'+video_id+'-sxvid.html'
-    xv_source = get_xvidstage_link(source_link)
-    if xv_source['url'] != '' :
-        addLink('Server Xvidstage (calitate video: nota '+calitate_film+')', xv_source['url']+'?.flv', thumbnail, movie_title)
+    # links
+    sxurls = [
+      ("fu_source", 'http://www.990.ro/player-film-'+video_id+'-sfast.html'),
+      ("xv_source", 'http://www.990.ro/player-film-'+video_id+'-sxvid.html')]
+
+    ret = -1
     
-
     # link trailer
     if link_video_trailer != '':
-        addLink('Trailer film', link_video_trailer+'?.mp4', thumbnail, movie_title+' (trailer)')
+        #addLink('Trailer film', link_video_trailer+'?.mp4', thumbnail, movie_title+' (trailer)')
+        SXSHOWINFO("Playing trailer...")
+        dialog = xbmcgui.Dialog()
+        ret = dialog.select('Select', ['Ruleaza trailer', 'Ruleaza film', 
+          "----", 
+          "Calitate audio/video: " + calitate_film, 
+          "Aparitie: " + aparitie_film,
+          "Gen: " + gen_film,
+          "Nota imdb: " + str(nota_film[0]) + "; Voturi: " + str(nota_film[1])
+          ])
+        if (ret == 0):
+          SXVIDEO_GENERIC_PLAY([("trailer", link_video_trailer+'?.mp4')], movie_title)
+      
+    #print sxurls
+    if (ret == 1):
+      SXVIDEO_GENERIC_PLAY(sxurls, movie_title)
     
 
 def get_url(url):
@@ -178,22 +316,42 @@ def get_url(url):
 
 def get_fu_link(legatura):
     link = get_url(legatura)
-    match = re.compile("(http://fastupload.ro/.+?.html)", re.IGNORECASE).findall(link)
+    match = re.compile("(http://(superweb|superweb.rol).ro/video/.+?.html)", re.IGNORECASE).findall(link)
     try:
-        fu_link = match[0]
+        fu_link = match[0][0]
     except:
         return {'url': '', 'referer': ''}
-    print fu_link
+    
+    #print fu_link
     fu_source = get_url(fu_link)
     if fu_source == False:
         return {'url': '', 'referer': ''}
     # fastupload flv url
-    match=re.compile("'file': '(.+?).(flv|mp4)',", re.IGNORECASE).findall(fu_source)
-    url_flv = match[0][0] + '.' + match[0][1]
+    match=re.compile("&flv=(.+?\.(mp4|flv))&getvar=", re.IGNORECASE).findall(fu_source)
+    #print "FUL"
+    #print match
+    url_flv = match[0][0]
+    url_ext = match[0][1]
+    
+    if (url_ext == "mp4"):
+      url_flv = url_flv#+'?.mp4|referer='+fu_link
+    elif (url_ext == "flv"):
+      url_flv = url_flv+'?.flv'#|referer='+fu_link
+ 
     #prepare
     fu = {}
-    fu['url']     = url_flv
-    fu['referer'] = fu_link 
+    fu['url']       = url_flv
+    fu['url_ext']   = url_ext
+    fu['referer']   = fu_link 
+    fu['subtitle']  = ""
+    
+    match=re.compile("'captions.file': '(.+?)',", re.IGNORECASE).findall(fu_source)
+    #print "FULSRT"
+    #print match
+    if match:
+        url_srt = match[0]
+        fu['subtitle']  = url_srt 
+    
     return fu
 
 def get_xvidstage_link(legatura):
@@ -224,6 +382,7 @@ def get_xvidstage_link(legatura):
     #prepare
     xv = {}
     xv['url'] = xvidstage_flv
+    xv['subtitle'] = xvidstage_flv
     return xv
 
 def get_search(keyword):
@@ -290,6 +449,13 @@ def youtube_video_link(url):
             link = yt_get_url(z)
     return link
 
+def sxaddLink(name,url,iconimage,movie_name,mode=4):
+        ok=True
+        u=sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
+        liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage)
+        liz.setInfo( type="Video", infoLabels={ "Title": movie_name } )
+        ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz)
+        return ok
 
 def addLink(name,url,iconimage,movie_name):
         ok=True
@@ -299,7 +465,7 @@ def addLink(name,url,iconimage,movie_name):
         return ok
 
 def addNext(name,page,mode,iconimage):
-    u=sys.argv[0]+"?url="+str(page)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
+    u=sys.argv[0]+"?url="+urllib.quote_plus(page)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
     liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
     liz.setInfo( type="Video", infoLabels={ "Title": name } )
     ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
@@ -332,44 +498,48 @@ try:
 except:
         pass
 
-print "Mode: "+str(mode)
-print "URL: "+str(url)
-print "Name: "+str(name)
+#print "Mode: "+str(mode)
+#print "URL: "+str(url)
+#print "Name: "+str(name)
 
 if mode==None or url==None or len(url)<1:
         ROOT()
        
 elif mode==1:
-        print ""+url
+        FILME(url, "toate")
+
+elif mode==11:
         FILME(url)
         
 elif mode==2:
-        print ""+url
         FILME_CALITATE_BUNA(url)
 
 elif mode==3:
-        print ""+url
         CAUTA(url)
 
 elif mode==4:
-        print ""+url+" si nume "+name
         VIDEO(url,name)
 
 elif mode==5:
-        print ""+url
+        SERIALE(url, "toate")
+
+elif mode==51:
         SERIALE(url)
 
 elif mode==6:
-        print ""+url
         SEZON(url)
 
 elif mode==7:
-        print ""+url
         EPISOADE(url)
 
 elif mode==8:
-        print ""+url
         VIDEO_EPISOD(url)
+
+elif mode==9:
+        SXVIDEO_EPISOD_PLAY(url)
+
+elif mode==10:
+        SXVIDEO_FILM_PLAY(url)
 
 
 
