@@ -180,51 +180,51 @@ def SXVIDEO_EPISOD_PLAY(url):
     SXVIDEO_GENERIC_PLAY(sxurls, episode_title)
     
 
-def SXVIDEO_GENERIC_PLAY(sxurls, seltitle):
+def SXVIDEO_GENERIC_PLAY(sxurls, seltitle, linksource="fu_source"):
     listitem = xbmcgui.ListItem(seltitle)
     listitem.setInfo('video', {'Title': seltitle})
     
-    for linksource, source_link in sxurls:
-      if linksource == "trailer":
-        SXVIDEO_PLAY_THIS(source_link, listitem, None)
-        break
+    source_link = None
+    for u in sxurls:
+      if u[0] == linksource:
+        source_link = u[1]
+        break;
         
-      elif linksource == "fu_source":
-        # link fusource
-        fu_source  = get_fu_link(source_link)
-        selurl     = fu_source['url']
-        #print "fusource " + selurl
+    if linksource == "trailer":
+      SXVIDEO_PLAY_THIS(source_link, listitem, None)
+      
+    elif linksource == "fu_source":
+      # link fusource
+      fu_source  = get_fu_link(source_link)
+      selurl     = fu_source['url']
+      SXVIDEO_PLAY_THIS(selurl, listitem, fu_source)
         
-        if SXVIDEO_PLAY_THIS(selurl, listitem, fu_source):
-          break
-          
-      elif linksource == "xv_source":
-        # link xvidstage
-        xv_source  = get_xvidstage_link(source_link)
-        selurl     = xv_source['url']+'?.flv'
-        #print "xvid" + selurl
-        
-        if SXVIDEO_PLAY_THIS(selurl, listitem, xv_source):
-          break
-
+    elif linksource == "xv_source":
+      # link xvidstage
+      xv_source  = get_xvidstage_link(source_link)
+      selurl     = xv_source['url']+'?.flv'
+      SXVIDEO_PLAY_THIS(selurl, listitem, xv_source)
+    
+    return
       
 def SXVIDEO_PLAY_THIS(selurl, listitem, source):
     player = xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ) 
     player.play(selurl, listitem)
     
-    while not player.isPlaying():
-      time.sleep(1) 
+    print source
+    
+    #while not player.isPlaying():
+    #  time.sleep(1) 
 
     try:
-          #if source['subtitle'] != "":
-          #print source
+          print "-"
           player.setSubtitles(source['subtitle'])
     except:
         pass
 
-    while player.isPlaying:
-      xbmc.sleep(100);
-    
+    #while player.isPlaying:
+    #  xbmc.sleep(100);
+      
     return player.isPlaying()
 
 
@@ -296,7 +296,7 @@ def SXVIDEO_FILM_PLAY(url):
           "Nota imdb: " + str(nota_film[0]) + "; Voturi: " + str(nota_film[1])
           ])
         if (ret == 0):
-          SXVIDEO_GENERIC_PLAY([("trailer", link_video_trailer+'?.mp4')], movie_title)
+          SXVIDEO_GENERIC_PLAY([("trailer", link_video_trailer+'?.mp4')], movie_title, "trailer")
       
     #print sxurls
     if (ret == 1):
@@ -333,17 +333,20 @@ def get_fu_link(legatura):
     url_flv = match[0][0]
     url_ext = match[0][1]
     
+    #req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+
     if (url_ext == "mp4"):
-      url_flv = url_flv#+'?.mp4|referer='+fu_link
+      url_flv = url_flv+'|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     elif (url_ext == "flv"):
-      url_flv = url_flv+'?.flv'#|referer='+fu_link
+      url_flv = url_flv+'?.flv|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
+    
  
     #prepare
     fu = {}
     fu['url']       = url_flv
     fu['url_ext']   = url_ext
     fu['referer']   = fu_link 
-    fu['subtitle']  = ""
+    fu['subtitle']  = None
     
     match=re.compile("'captions.file': '(.+?)',", re.IGNORECASE).findall(fu_source)
     #print "FULSRT"
@@ -353,6 +356,7 @@ def get_fu_link(legatura):
         fu['subtitle']  = url_srt 
     
     return fu
+
 
 def get_xvidstage_link(legatura):
     link = get_url(legatura)
@@ -382,9 +386,10 @@ def get_xvidstage_link(legatura):
     #prepare
     xv = {}
     xv['url'] = xvidstage_flv
-    xv['subtitle'] = xvidstage_flv
+    xv['subtitle'] = None
+    
     return xv
-
+    
 def get_search(keyword):
     url = 'http://www.990.ro/functions/search3/live_search_using_jquery_ajax/search.php'
     params = {'kw': keyword}
