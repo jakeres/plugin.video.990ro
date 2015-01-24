@@ -26,6 +26,7 @@ def ROOT():
     addDir('Filme actualizate','http://www.990.ro/',2,movies_hd_thumb)
     addDir('Seriale','http://www.990.ro/seriale.php?pagina=1',5,tv_series_thumb)
     addDir('Seriale pe genuri','http://www.990.ro/seriale.php?pagina=1',51,tv_series_thumb)
+    addDir('Seriale ultimele episoade','http://www.990.ro/seriale.php?pagina=1',52,tv_series_thumb)
     addDir('Cauta filme','http://www.990.ro/',3,search_thumb)
     
     xbmc.executebuiltin("Container.SetViewMode(500)")
@@ -236,14 +237,17 @@ def SXSHOWINFO(text):
 def SXVIDEO_FILM_PLAY(url):
     SXSHOWINFO("Playing movie...")
     
-    # thumbnail
+    # thumbnail  &  movie title
     src = get_url(urllib.quote(url, safe="%/:=&?~#+!$,;'@()*[]"))
-    match = re.compile("<div style='position:relative; float:left; border:0px solid #000;'><img src='../(.+?)'", re.IGNORECASE).findall(src)
-    thumbnail = 'http://www.990.ro/'+match[0]
+    match = re.compile("<img src='../(poze/filme/.+?)' alt='(.+?)' ", re.IGNORECASE).findall(src)
+    thumbnail = 'http://www.990.ro/'+match[0][0]
+    movie_title = match[0][1]
     
     # calitate film
-    match=re.compile("<div align='center' style='position:relative; float:left; width:50px; height:30px; background-color:#999; color:#fff; font-size:20px; padding-top:3px;'><b>(.+?)</b>", re.IGNORECASE).findall(src)
-    calitate_film = match[0]
+    calitate_film = ""
+    match=re.compile("Calitate film: (.+?)\.", re.IGNORECASE).findall(src)
+    if match:
+      calitate_film = match[0].replace('<b>', ' ').replace('</b>', ' ')
     
     #aparitie film
     match=re.compile("<b>Aparitie</b>: (.\d+)", re.IGNORECASE).findall(src)
@@ -257,6 +261,8 @@ def SXVIDEO_FILM_PLAY(url):
     match=re.compile("Nota IMDb: <br>\n.+?<b>(.+?)</b>/10 \((.+?) voturi\)", re.IGNORECASE).findall(src)
     nota_film = match[0]
 
+
+    SXSHOWINFO("Found video links for " + movie_title + " ...")
     
         
     #link trailer
@@ -269,12 +275,6 @@ def SXVIDEO_FILM_PLAY(url):
     # video id
     match=re.compile('990.ro/filme-([0-9]+)-.+?.html', re.IGNORECASE).findall(url)
     video_id = match[0]
-
-    # movie title
-    match=re.compile("<div align='left' style='position:relative; float:left; border:0px solid #000; width:420px; padding-left:10px; margin-top:5px; font:24px Tahoma; font-weight:bold;'>\s+(.*?)\s+</div>", re.IGNORECASE).findall(src)
-    movie_title = match[0]
-
-    SXSHOWINFO("Found video links for " + movie_title + " ...")
 
     # links
     sxurls = [
@@ -299,7 +299,7 @@ def SXVIDEO_FILM_PLAY(url):
           SXVIDEO_GENERIC_PLAY([("trailer", link_video_trailer+'?.mp4')], movie_title, "trailer")
       
     #print sxurls
-    if (ret == 1):
+    if (ret > 0):
       SXVIDEO_GENERIC_PLAY(sxurls, movie_title)
     
 
