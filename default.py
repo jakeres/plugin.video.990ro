@@ -343,7 +343,7 @@ def get_fu_link(legatura):
     url_ext = match[0][1]
     
     if (url_ext == "mp4"):
-      url_flv = url_flv+'?.mp4|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
+      url_flv = url_flv+'|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     elif (url_ext == "flv"):
       url_flv = url_flv+'?.flv|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     
