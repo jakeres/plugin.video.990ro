@@ -2,7 +2,7 @@ import urllib,urllib2,re,xbmc,xbmcplugin,xbmcaddon,xbmcgui,os,sys,commands,HTMLP
 
 website = 'http://www.990.ro/';
 
-__version__ = "1.0.4"
+__version__ = "1.0.6"
 __plugin__ = "990.ro" + __version__
 __url__ = "www.xbmc.com"
 settings = xbmcaddon.Addon( id = 'plugin.video.990ro' )
@@ -13,11 +13,6 @@ movies_hd_thumb = os.path.join( settings.getAddonInfo( 'path' ), 'resources', 'm
 tv_series_thumb = os.path.join( settings.getAddonInfo( 'path' ), 'resources', 'media', 'tv.png' )
 next_thumb = os.path.join( settings.getAddonInfo( 'path' ), 'resources', 'media', 'next.png' )
 
-try:
-   import StorageServer
-except:
-   import storageserverdummy as StorageServer
-cache = StorageServer.StorageServer("990ro", 24)
 
 
 def ROOT():
@@ -206,13 +201,17 @@ def SXVIDEO_GENERIC_PLAY(sxurls, seltitle, linksource="fu_source"):
       selurl     = xv_source['url']+'?.flv'
       SXVIDEO_PLAY_THIS(selurl, listitem, xv_source)
     
+    else:
+      dialog = xbmcgui.Dialog()
+      dialog.notification("Info", "Unkown movie source.", xbmcgui.NOTIFICATION_WARNING, 2000)
+
     return
       
 def SXVIDEO_PLAY_THIS(selurl, listitem, source):
     player = xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ) 
     player.play(selurl, listitem)
     
-    print source
+    #print source
     
     #while not player.isPlaying():
     #  time.sleep(1) 
@@ -232,10 +231,12 @@ def SXVIDEO_PLAY_THIS(selurl, listitem, source):
 def SXSHOWINFO(text):
     #progress = xbmcgui.DialogProgress()
     #progress.create("kml browser", "downloading playlist...", "please wait.")
-    print ""
+    #print " --- " + text
     
 def SXVIDEO_FILM_PLAY(url):
     SXSHOWINFO("Playing movie...")
+    dialog = xbmcgui.Dialog()
+    dialog.notification("Info", "Playing movie...", xbmcgui.NOTIFICATION_WARNING, 1000)
     
     # thumbnail  &  movie title
     src = get_url(urllib.quote(url, safe="%/:=&?~#+!$,;'@()*[]"))
@@ -261,17 +262,17 @@ def SXVIDEO_FILM_PLAY(url):
     match=re.compile("Nota IMDb: <br>\n.+?<b>(.+?)</b>/10 \((.+?) voturi\)", re.IGNORECASE).findall(src)
     nota_film = match[0]
 
-
     SXSHOWINFO("Found video links for " + movie_title + " ...")
-    
-        
+
     #link trailer
+    link_video_trailer = None
     try:
-        match=re.compile("<iframe width='595' height='335' src='.+?/embed/(.+?)' frameborder='0'>", re.IGNORECASE).findall(src)
-        link_youtube = 'http://www.youtube.com/watch?v='+match[0]
+        match=re.compile("src='(http:)?(//www.youtube.com/.+?)'", re.IGNORECASE).findall(src)
+        link_youtube = 'http:'+match[0][1]
         link_video_trailer = youtube_video_link(link_youtube)
     except:
         link_video_trailer = ''
+
     # video id
     match=re.compile('990.ro/filme-([0-9]+)-.+?.html', re.IGNORECASE).findall(url)
     video_id = match[0]
@@ -296,12 +297,20 @@ def SXVIDEO_FILM_PLAY(url):
           "Nota imdb: " + str(nota_film[0]) + "; Voturi: " + str(nota_film[1])
           ])
         if (ret == 0):
-          SXVIDEO_GENERIC_PLAY([("trailer", link_video_trailer+'?.mp4')], movie_title, "trailer")
+          SXVIDEO_GENERIC_PLAY([("trailer", link_video_trailer)], movie_title, "trailer")
+    else:
+      dialog = xbmcgui.Dialog()
+      dialog.notification("Info", "No trailer found. Playing movie...", xbmcgui.NOTIFICATION_WARNING, 2000)
+      ret = 1
       
+    #window = xbmcgui.Window(xbmcgui.getCurrentWindowId())
+    #time_label = xbmcgui.ControlLabel(1200, 10, 100, 50, '$INFO[System.Time]', font='font24_title', textColor='0xFFFFFF00')
+    #window.addControl(time_label)
+
     #print sxurls
     if (ret > 0):
       SXVIDEO_GENERIC_PLAY(sxurls, movie_title)
-    
+
 
 def get_url(url):
     req = urllib2.Request(url)
@@ -333,10 +342,8 @@ def get_fu_link(legatura):
     url_flv = match[0][0]
     url_ext = match[0][1]
     
-    #req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
-
     if (url_ext == "mp4"):
-      url_flv = url_flv+'|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
+      url_flv = url_flv+'?.mp4|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     elif (url_ext == "flv"):
       url_flv = url_flv+'?.flv|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     
@@ -441,19 +448,12 @@ def yt_get_url(z):
     return urllib.unquote(z['url'])
 
 def youtube_video_link(url):
-    # 18 - mp4
-    fmt = '18'
-    s, n = yt_get_all_url_maps_name(url)
-    for z in s:
-        if z['itag'] == fmt:
-            if 'mp4' in z['type']:
-                ext = '.mp4'
-            elif 'flv' in z['type']:
-                ext = '.flv'
-            found = True
-            link = yt_get_url(z)
-    return link
-
+    #print "YOUTUBE: " + url
+    import urlresolver 
+    
+    media_url = urlresolver.resolve(url) 
+    return media_url
+    
 def sxaddLink(name,url,iconimage,movie_name,mode=4):
         ok=True
         u=sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
