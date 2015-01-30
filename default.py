@@ -231,7 +231,7 @@ def SXVIDEO_PLAY_THIS(selurl, listitem, source):
 def SXSHOWINFO(text):
     #progress = xbmcgui.DialogProgress()
     #progress.create("kml browser", "downloading playlist...", "please wait.")
-    #print " --- " + text
+    print " --- " + text
     
 def SXVIDEO_FILM_PLAY(url):
     SXSHOWINFO("Playing movie...")
