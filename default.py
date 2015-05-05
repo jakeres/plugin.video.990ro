@@ -48,7 +48,7 @@ def FILME(url, gen = None):
     gen=afisare_genuri(gen, url, link, 'http://www.990.ro/toate-filmele.php', 1)
     if (gen == None): return;
     
-    match=re.compile("<a href='(filme-[0-9]+-.+?.html)'><img src='../(poze/filme/.+?)' alt='(.+?)'", re.IGNORECASE|re.MULTILINE).findall(link)
+    match=re.compile("<a href='(filme-[0-9]+-.+?.html)'>.+?<img src='../(poze/filme/.+?)' alt='(.+?)'", re.IGNORECASE|re.MULTILINE).findall(link)
         
     for legatura, thumbnail, name in match:
         the_link = 'http://www.990.ro/'+legatura
@@ -151,7 +151,7 @@ def EPISOADE(url):
 
         
 def SXVIDEO_EPISOD_PLAY(url):
-    SXSHOWINFO("Playing episode...")
+    SXSHOWINFO("Getting episode...")
     match=re.compile("seriale2-([0-9]+-[0-9]+)-(.+?)-(online|download)", re.IGNORECASE).findall(url)
     id_episod = match[0][0]
     nume = match[0][1]
@@ -234,9 +234,9 @@ def SXSHOWINFO(text):
     print " --- " + text
     
 def SXVIDEO_FILM_PLAY(url):
-    SXSHOWINFO("Playing movie...")
+    SXSHOWINFO("Getting movie...")
     dialog = xbmcgui.Dialog()
-    dialog.notification("Info", "Playing movie...", xbmcgui.NOTIFICATION_WARNING, 1000)
+    dialog.notification("Info", "Getting movie...", xbmcgui.NOTIFICATION_WARNING, 3000)
     
     # thumbnail  &  movie title
     src = get_url(urllib.quote(url, safe="%/:=&?~#+!$,;'@()*[]"))
@@ -331,21 +331,22 @@ def get_fu_link(legatura):
     except:
         return {'url': '', 'referer': ''}
     
+    #print "DDDDDD"
     #print fu_link
     fu_source = get_url(fu_link)
     if fu_source == False:
         return {'url': '', 'referer': ''}
     # fastupload flv url
-    match=re.compile("&flv=(.+?\.(mp4|flv))&getvar=", re.IGNORECASE).findall(fu_source)
+    match=re.compile("'(http://.+?\.(mp4|flv))'", re.IGNORECASE).findall(fu_source)
     #print "FUL"
     #print match
     url_flv = match[0][0]
     url_ext = match[0][1]
     
     if (url_ext == "mp4"):
-      url_flv = url_flv+'|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
+      url_flv = url_flv+'|User-Agent=Mozilla/5.0 Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     elif (url_ext == "flv"):
-      url_flv = url_flv+'?.flv|User-Agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
+      url_flv = url_flv+'?.flv|User-Agent=Mozilla/5.0 Gecko/2008092417 Firefox/3.0.3|referer='+fu_link
     
  
     #prepare
